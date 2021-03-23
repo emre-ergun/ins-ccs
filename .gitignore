@@ -24,3 +24,4 @@ makefile
 *.uniflashsession
 
 # End of CodeComposerStudio
+/.metadata/
