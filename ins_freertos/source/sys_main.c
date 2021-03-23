@@ -43,6 +43,12 @@
 
 
 /* USER CODE BEGIN (0) */
+#include "het.h"
+#include "gio.h"
+
+/*freertos*/
+#include "FreeRTOS.h" /* Must come first. */
+#include "os_task.h"    /* RTOS task related API prototypes. */
 /* USER CODE END */
 
 /* Include Files */
@@ -50,6 +56,11 @@
 #include "sys_common.h"
 
 /* USER CODE BEGIN (1) */
+xTaskHandle xTask1Handle;
+xTaskHandle xTask2Handle;
+
+void vTask1(void *pvParameters);
+void vTask2(void *pvParameters);
 /* USER CODE END */
 
 /** @fn void main(void)
@@ -66,6 +77,21 @@
 int main(void)
 {
 /* USER CODE BEGIN (3) */
+    gioSetDirection(hetPORT1, 0xFFFFFFFF);
+    /* Create Task 1 */
+   if (xTaskCreate(vTask1,"Task1", configMINIMAL_STACK_SIZE, NULL, 1, &xTask1Handle) != pdTRUE)
+   {
+       /* Task could not be created */
+       while(1);
+   }
+   /* Create Task 2 */
+   if (xTaskCreate(vTask2,"Task2", configMINIMAL_STACK_SIZE, NULL, 1, &xTask2Handle) != pdTRUE)
+   {
+       /* Task could not be created */
+       while(1);
+   }
+   /* Start Scheduler */
+   vTaskStartScheduler();
 /* USER CODE END */
 
     return 0;
@@ -73,4 +99,20 @@ int main(void)
 
 
 /* USER CODE BEGIN (4) */
+
+void vTask1(void *pvParameters) {
+
+    while(1) {
+        gioToggleBit(hetPORT1, 0);
+        vTaskDelay(100);
+
+    }
+}
+
+void vTask2(void *pvParameters) {
+    while(1) {
+        gioToggleBit(hetPORT1, 17);
+        vTaskDelay(250);
+    }
+}
 /* USER CODE END */
