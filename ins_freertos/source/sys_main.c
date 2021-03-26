@@ -43,8 +43,10 @@
 
 
 /* USER CODE BEGIN (0) */
+#include "system.h"
 #include "het.h"
 #include "gio.h"
+#include "spi.h"
 
 /*freertos*/
 #include "FreeRTOS.h" /* Must come first. */
@@ -72,27 +74,47 @@ void vTask2(void *pvParameters);
 */
 
 /* USER CODE BEGIN (2) */
+#define SENSOR_READ     0x01
+#define SENSOR_WRITE    0x00
+
+
+#define DEVID_AD        0x00
+#define DEVID_MST       0x01
+#define PART_ID         0x02
+
+#define RANGE_CTL       0x2C
+#define POWER_CTL       0x2D
+
+#define RANGE           0x03
+#define POWER           0x06
+
+uint16 TX_Data_Master[16];
+uint16 RX_Data_Master[16];
+
 /* USER CODE END */
 
 int main(void)
 {
 /* USER CODE BEGIN (3) */
+    spiInit();
     gioSetDirection(hetPORT1, 0xFFFFFFFF);
+
+
     /* Create Task 1 */
-   if (xTaskCreate(vTask1,"Task1", configMINIMAL_STACK_SIZE, NULL, 1, &xTask1Handle) != pdTRUE)
-   {
+    if (xTaskCreate(vTask1,"Task1", configMINIMAL_STACK_SIZE, NULL, 1, &xTask1Handle) != pdTRUE)
+    {
        /* Task could not be created */
        while(1);
-   }
-   /* Create Task 2 */
-   if (xTaskCreate(vTask2,"Task2", configMINIMAL_STACK_SIZE, NULL, 1, &xTask2Handle) != pdTRUE)
-   {
+    }
+    /* Create Task 2 */
+    if (xTaskCreate(vTask2,"Task2", configMINIMAL_STACK_SIZE, NULL, 1, &xTask2Handle) != pdTRUE)
+    {
        /* Task could not be created */
        while(1);
-   }
-   /* Start Scheduler */
-   vTaskStartScheduler();
-/* USER CODE END */
+    }
+    /* Start Scheduler */
+    vTaskStartScheduler();
+    /* USER CODE END */
 
     return 0;
 }
@@ -104,15 +126,53 @@ void vTask1(void *pvParameters) {
 
     while(1) {
         gioToggleBit(hetPORT1, 0);
-        vTaskDelay(100);
+        vTaskDelay(500);
 
     }
 }
 
 void vTask2(void *pvParameters) {
+    spiDAT1_t dataconfig1_t;
+    dataconfig1_t.CS_HOLD = TRUE;
+    dataconfig1_t.WDEL    = TRUE;
+    dataconfig1_t.DFSEL   = SPI_FMT_0;
+    dataconfig1_t.CSNR    = 0xFE;
+
+
+    TX_Data_Master[0] = (RANGE_CTL << 1) | SENSOR_WRITE;
+    spiTransmitData(spiREG1, &dataconfig1_t, 1, TX_Data_Master);
+    TX_Data_Master[0] = RANGE;
+    spiTransmitData(spiREG1, &dataconfig1_t, 1, TX_Data_Master);
+
+    TX_Data_Master[0] = (POWER_CTL << 1) | SENSOR_WRITE;
+    spiTransmitData(spiREG1, &dataconfig1_t, 1, TX_Data_Master);
+    TX_Data_Master[0] = POWER;
+    spiTransmitData(spiREG1, &dataconfig1_t, 1, TX_Data_Master);
+
+    vTaskDelay(100);
+
+
+
+
     while(1) {
-        gioToggleBit(hetPORT1, 17);
-        vTaskDelay(250);
+
+        TX_Data_Master[0] = (DEVID_AD << 1) | SENSOR_READ;
+
+        spiTransmitData(spiREG1, &dataconfig1_t, 1, TX_Data_Master);
+        spiReceiveData(spiREG1, &dataconfig1_t, 1, &RX_Data_Master[3]);
+        spiReceiveData(spiREG1, &dataconfig1_t, 1, RX_Data_Master);
+
+        TX_Data_Master[0] = (DEVID_MST << 1) | SENSOR_READ;
+        spiTransmitData(spiREG1, &dataconfig1_t, 1, TX_Data_Master);
+        spiReceiveData(spiREG1, &dataconfig1_t, 1, RX_Data_Master);
+        spiReceiveData(spiREG1, &dataconfig1_t, 1, &RX_Data_Master[1]);
+
+        TX_Data_Master[0] = (PART_ID << 1) | SENSOR_READ;
+        spiTransmitData(spiREG1, &dataconfig1_t, 1, TX_Data_Master);
+        spiReceiveData(spiREG1, &dataconfig1_t, 1, RX_Data_Master);
+        spiReceiveData(spiREG1, &dataconfig1_t, 1, &RX_Data_Master[2]);
+
+        vTaskDelay(1000);
     }
 }
 /* USER CODE END */
